@@ -1,0 +1,51 @@
+// @ts-nocheck
+function createDocumentFromForm(e) {
+  // 指定されたテンプレートとフォルダーのID
+  var templateId = '19TpSooLhsBHlCisv93mM_Tp6an4xisJToJ5hDUy61c0'; //プレースホルダのある任意のGoogle documentのテンプレートのID 今回は公開したテンプレートのID 
+  var folderId = '';  //任意のフォルダのID 作成先になる
+
+  // フォームからの回答を取得
+  var formResponse = e.response.getItemResponses();
+  var formData = {};
+  formResponse.forEach(function(item) {
+    var questionTitle = item.getItem().getTitle();
+    var answer = item.getResponse();
+    formData[questionTitle] = answer;
+  });
+
+  // フォームデータから動的にドキュメントのタイトルを生成
+  var fullName = formData['フルネーム']; // フォームの質問タイトルに合わせる
+  var startDate = formData['就業開始日']; // フォームの質問タイトルに合わせる
+  var docTitle = `サンプル_雇用契約書_${fullName}_${startDate}`;
+
+  // テンプレートから新しいドキュメントを作成して指定したフォルダに保存
+  var documentId = DriveApp.getFileById(templateId)
+    .makeCopy(docTitle, DriveApp.getFolderById(folderId))
+    .getId();
+  var doc = DocumentApp.openById(documentId);
+  var body = doc.getBody();
+
+  // formData['就業開始日']が 'yyyy-mm-dd' フォーマットの日付文字列だと仮定
+  var startDate = new Date(formData['就業開始日']);
+  var formattedStartDate = Utilities.formatDate(startDate, Session.getScriptTimeZone(), "yyyy/MM/dd");
+
+    startDate.setFullYear(startDate.getFullYear() + 2); // 2年を加算
+    startDate.setDate(startDate.getDate() - 1);
+     
+  // 日付を 'yyyy-mm-dd' フォーマットの文字列に戻す
+  var endDateString = startDate.toISOString().substring(0, 10);
+  var endDateString = endDateString.replace(/-/g, '/');
+  
+  // プレースホルダーをフォームのデータで置換
+  for (var key in formData) {
+    // プレースホルダーが'{{'と'}}'で囲まれている場合は、それに合わせてください
+    body.replaceText('{{' + key + '}}', formData[key]);
+  }
+    body.replaceText('{{就業開始日}}', formattedStartDate);
+    body.replaceText('{{勤務終了日}}', endDateString);
+    body.replaceText('{{総支給額}}', Number(formData['基本給']) + Number(formData['手当1']) +
+               Number(formData['手当2']) + Number(formData['手当3']));
+
+  // 変更を保存してドキュメントを閉じる
+  doc.saveAndClose();
+}
